@@ -1,28 +1,14 @@
-data "aws_vpc" "default" {
-  default = true
-}
-
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
-}
-
-data "aws_ami" "ubuntu_2204" {
-  most_recent = true
-  owners      = ["099720109477"] # Canonical
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
-  }
+provider "aws" {
+  region  = var.aws_region
+  profile = var.aws_profile
 }
 
 resource "aws_security_group" "web" {
-  name   = "tf-web-sg"
-  vpc_id = data.aws_vpc.default.id
+  name        = local.sg_name
+  description = "Managed by Terraform"
+  vpc_id      = data.aws_vpc.default.id
 
+  # SSH
   ingress {
     from_port   = 22
     to_port     = 22
@@ -30,18 +16,15 @@ resource "aws_security_group" "web" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+  # App ports (80/443 etc)
+  dynamic "ingress" {
+    for_each = toset(var.application_ports)
+    content {
+      from_port   = ingress.value
+      to_port     = ingress.value
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
   }
 
   egress {
@@ -51,54 +34,70 @@ resource "aws_security_group" "web" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
-    Project   = "devops-homework"
-    ManagedBy = "terraform"
-  }
+  tags = merge(local.common_tags, {
+    Name = local.sg_name
+  })
 }
 
 resource "aws_instance" "nginx" {
-  ami                    = data.aws_ami.ubuntu_2204.id
-  instance_type          = "t3.micro"
-  subnet_id              = element(data.aws_subnets.default.ids, 0)
+  ami                    = local.effective_ami_id
+  instance_type          = var.instance_type
+  subnet_id              = data.aws_subnets.default.ids[0]
   vpc_security_group_ids = [aws_security_group.web.id]
-  key_name               = "tf-deployer-key"
+  key_name               = var.key_name
 
-  monitoring = true
+  monitoring = var.monitoring
 
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
-    instance_metadata_tags      = "enabled"
     http_put_response_hop_limit = 2
+    instance_metadata_tags      = "enabled"
   }
 
-  user_data = file("${path.module}/userdata.sh")
+  user_data = <<-EOT
+    #!/bin/bash
+    set -e
+    apt-get update -y
+    apt-get install -y nginx
+    systemctl enable nginx
+    systemctl start nginx
+  EOT
 
   root_block_device {
-    volume_type           = "gp3"
-    volume_size           = 10
-    delete_on_termination = true
+    volume_size = var.root_block_device_size
+    volume_type = "gp3"
   }
 
   ebs_block_device {
-    device_name           = "/dev/sdf"
-    volume_type           = "gp3"
-    volume_size           = 10
-    delete_on_termination = true
+    device_name = "/dev/sdf"
+    volume_size = var.ebs_size
+    volume_type = "gp3"
   }
 
-  tags = {
-    Name      = "tf-nginx"
-    Project   = "devops-homework"
-    ManagedBy = "terraform"
+  tags = local.common_tags
+
+  lifecycle {
+    # Preconditions (evaluated before create/update)
+    precondition {
+      condition     = local.common_tags["Name"] == local.instance_name && startswith(local.instance_name, local.name_prefix)
+      error_message = "Name tag does not match naming convention. Expected prefix: ${local.name_prefix}"
+    }
+
+    precondition {
+      condition     = var.monitoring == true
+      error_message = "monitoring must be enabled (true)."
+    }
+
+    # Postconditions (evaluated after create/update)
+    postcondition {
+      condition     = self.monitoring == true
+      error_message = "EC2 monitoring is not enabled."
+    }
+
+    postcondition {
+      condition     = lookup(self.tags, "Owner", "") != ""
+      error_message = "EC2 instance must have tag Owner."
+    }
   }
-}
-
-output "public_ip" {
-  value = aws_instance.nginx.public_ip
-}
-
-output "nginx_url" {
-  value = "http://${aws_instance.nginx.public_ip}"
 }

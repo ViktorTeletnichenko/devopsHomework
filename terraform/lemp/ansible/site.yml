@@ -1,0 +1,160 @@
+---
+- name: DB server (MariaDB)
+  hosts: db
+  become: true
+  vars:
+    mysql_root_password: "RootPass_ChangeMe123!"
+    app_db: "appdb"
+    app_user: "appuser"
+    app_password: "AppPass_ChangeMe123!"
+  tasks:
+    - name: Install MariaDB
+      apt:
+        update_cache: true
+        name:
+          - mariadb-server
+          - python3-pymysql
+        state: present
+
+    - name: Ensure MariaDB started and enabled
+      service:
+        name: mariadb
+        state: started
+        enabled: true
+
+    - name: Set root password (unix_socket auth)
+      command: >
+        mariadb
+        --protocol=socket
+        -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_root_password }}'; FLUSH PRIVILEGES;"
+      args:
+        creates: /root/.mariadb_root_pw_set
+
+    - name: Mark root password set
+      file:
+        path: /root/.mariadb_root_pw_set
+        state: touch
+
+    - name: Create application database
+      community.mysql.mysql_db:
+        name: "{{ app_db }}"
+        state: present
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+
+    - name: Create application user and grant privileges
+      community.mysql.mysql_user:
+        name: "{{ app_user }}"
+        password: "{{ app_password }}"
+        priv: "{{ app_db }}.*:ALL"
+        host: "%"
+        state: present
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+
+    - name: Allow remote connections (bind-address 0.0.0.0)
+      lineinfile:
+        path: /etc/mysql/mariadb.conf.d/50-server.cnf
+        regexp: '^bind-address\s*='
+        line: 'bind-address = 0.0.0.0'
+      notify: Restart MariaDB
+
+    - name: Ensure port 3306 open to VPC (UFW may be absent; ignore)
+      ufw:
+        rule: allow
+        port: "3306"
+        proto: tcp
+      ignore_errors: true
+
+  handlers:
+    - name: Restart MariaDB
+      service:
+        name: mariadb
+        state: restarted
+
+
+- name: Front server (Nginx + PHP-FPM)
+  hosts: front
+  become: true
+  vars:
+    # беремо приватний IP бекенда з terraform output, щоб фронт ходив по VPC
+    db_host: "172.31.18.30"
+    mysql_root_password: "RootPass_ChangeMe123!"
+    app_db: "appdb"
+    app_user: "appuser"
+    app_password: "AppPass_ChangeMe123!"
+    web_root: "/var/www/html"
+  tasks:
+    - name: Install Nginx and PHP
+      apt:
+        update_cache: true
+        name:
+          - nginx
+          - php-fpm
+          - php-mysql
+        state: present
+
+    - name: Ensure Nginx started and enabled
+      service:
+        name: nginx
+        state: started
+        enabled: true
+
+    - name: Render index.php
+      template:
+        src: templates/index.php.j2
+        dest: "{{ web_root }}/index.php"
+        owner: www-data
+        group: www-data
+        mode: "0644"
+
+    - name: Configure Nginx default site for PHP
+      copy:
+        dest: /etc/nginx/sites-available/default
+        mode: "0644"
+        content: |
+          server {
+              listen 80 default_server;
+              listen [::]:80 default_server;
+
+              root /var/www/html;
+              index index.php index.html;
+
+              server_name _;
+
+              location / {
+                  try_files $uri $uri/ =404;
+              }
+
+              location ~ \.php$ {
+                  include snippets/fastcgi-php.conf;
+                  fastcgi_pass unix:/run/php/php8.1-fpm.sock;
+              }
+
+              location ~ /\.ht {
+                  deny all;
+              }
+          }
+      notify: Reload Nginx
+
+    - name: Ensure PHP-FPM is running
+      service:
+        name: php8.1-fpm
+        state: started
+        enabled: true
+
+    - name: Quick local check (front) - nginx serves index.php
+      uri:
+        url: "http://localhost/index.php"
+        status_code: 200
+      register: front_check
+
+    - name: Print local check result
+      debug:
+        var: front_check.status
+
+  handlers:
+    - name: Reload Nginx
+      service:
+        name: nginx
+        state: reloaded

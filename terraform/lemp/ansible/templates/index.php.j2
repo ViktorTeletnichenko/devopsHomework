@@ -1,0 +1,19 @@
+<?php
+$host = "{{ db_host }}";
+$db   = "{{ app_db }}";
+$user = "{{ app_user }}";
+$pass = "{{ app_password }}";
+
+header("Content-Type: text/plain; charset=utf-8");
+
+try {
+    $dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
+    $pdo = new PDO($dsn, $user, $pass, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+    ]);
+    $pdo->query("SELECT 1");
+    echo "OK: PHP + DB connection works\n";
+} catch (Exception $e) {
+    http_response_code(500);
+    echo "FAIL: " . $e->getMessage() . "\n";
+}

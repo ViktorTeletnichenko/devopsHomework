@@ -13,3 +13,13 @@
 **/terraform.tfvars
 **/backend.hcl
 **/*.pem
+
+# Terraform secrets/state
+**/terraform.tfvars
+**/*.tfstate
+**/*.tfstate.*
+**/.terraform/
+**/.terraform.lock.hcl
+terraform/ec2/terraform.tfvars
+terraform/lemp/terraform.tfvars
+terraform/lemp/ansible/group_vars/all.yml

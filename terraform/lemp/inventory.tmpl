@@ -1,0 +1,9 @@
+[front]
+front ansible_host=${front_public_ip} private_ip=${front_private_ip} ansible_user=ubuntu
+
+[backend]
+db ansible_host=${backend_public_ip} private_ip=${backend_private_ip} ansible_user=ubuntu
+
+[all:vars]
+ansible_ssh_private_key_file=${ssh_private_key_path}
+ansible_python_interpreter=/usr/bin/python3
