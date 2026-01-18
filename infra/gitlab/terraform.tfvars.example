@@ -1,0 +1,7 @@
+gitlab_base_url = "http://192.168.0.131/api/v4/"
+gitlab_token    = "PASTE_YOUR_PAT_HERE"
+gitlab_insecure = false
+
+group_name      = "devops-homework-terraform"
+project_names   = ["app", "infra", "docs"]
+create_deploy_token = true

@@ -1,0 +1,8 @@
+terraform apply outputs:
+
+group_id = "10"
+project_ids = {
+  "app" = "4"
+  "docs" = "5"
+  "infra" = "6"
+}
