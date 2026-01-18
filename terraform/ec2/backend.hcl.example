@@ -1,0 +1,6 @@
+bucket         = "victor-tf-state-854313414"
+key            = "devops-hw/ec2/terraform.tfstate"
+region         = "eu-central-1"
+dynamodb_table = "terraform-locks"
+encrypt        = true
+profile        = "myaws"

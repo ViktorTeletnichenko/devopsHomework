@@ -5,3 +5,11 @@
 **/*.tfstate.*
 **/terraform.tfvars
 **/crash.log
+
+# Terraform
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/terraform.tfvars
+**/backend.hcl
+**/*.pem
