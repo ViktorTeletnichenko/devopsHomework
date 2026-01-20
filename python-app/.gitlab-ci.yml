@@ -1,0 +1,84 @@
+stages: [lint, test, sonar, build, publish]
+
+variables:
+  GIT_DEPTH: "0"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+
+lint:
+  stage: lint
+  image: python:3.12-slim
+  script:
+    - cd python-app
+    - python -V
+    - pip install -U pip ruff
+    - ruff check .
+    - ruff format --check .
+
+tests:
+  stage: test
+  image: python:3.12-slim
+  script:
+    - cd python-app
+    - python -V
+    - pip install -U pip pytest pytest-cov
+    - pytest -q --cov=. --cov-report=xml:coverage.xml
+  artifacts:
+    paths:
+      - python-app/coverage.xml
+    expire_in: 7 days
+
+sonarqube:
+  stage: sonar
+  image: sonarsource/sonar-scanner-cli:latest
+  dependencies: [tests]
+  script:
+    - cd python-app
+    - sonar-scanner
+      -Dsonar.host.url="$SONAR_HOST_URL"
+      -Dsonar.login="$SONAR_TOKEN"
+      -Dsonar.projectKey="$SONAR_PROJECT_KEY_PYTHON"
+      -Dsonar.sources="."
+      -Dsonar.exclusions="**/.venv/**,**/__pycache__/**,**/.pytest_cache/**,**/dist/**,**/build/**"
+      -Dsonar.python.coverage.reportPaths="coverage.xml"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+build:
+  stage: build
+  image: python:3.12-slim
+  script:
+    - cd python-app
+    - python -V
+    - pip install -U pip build
+    - python -m build
+  artifacts:
+    paths:
+      - python-app/dist/
+    expire_in: 14 days
+
+publish_to_artifactory:
+  stage: publish
+  image: alpine:3.20
+  dependencies: [build]
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - apk add --no-cache curl
+    - test -n "$ARTIFACTORY_URL_PYTHON"
+    - test -n "$ARTIFACTORY_REPO"
+    - test -n "$ARTIFACTORY_TOKEN"
+    - VERSION="${CI_COMMIT_TAG#v}"
+    - |
+      for f in python-app/dist/*; do
+        [ -f "$f" ] || continue
+        echo "Uploading $f ..."
+        curl -f \
+          -H "Authorization: Bearer $ARTIFACTORY_TOKEN" \
+          -T "$f" \
+          "$ARTIFACTORY_URL_PYTHON/artifactory/$ARTIFACTORY_REPO/python-app/$VERSION/$(basename "$f")"
+      done
