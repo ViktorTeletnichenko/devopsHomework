@@ -173,3 +173,5 @@ publish_python_artifactory:
           -T "$f" \
           "$ARTIFACTORY_URL_PYTHON/artifactory/$ARTIFACTORY_REPO/python-app/$VERSION/$(basename "$f")"
       done
+  variables:
+    GIT_STRATEGY: none
