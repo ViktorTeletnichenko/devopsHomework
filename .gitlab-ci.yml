@@ -1,0 +1,175 @@
+stages: [lint, test, security, sonar, build, publish]
+
+variables:
+  GIT_DEPTH: "0"
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_DIR: "infra/gitlab/modules/gitlab-bootstrap"
+
+# ---------------------------
+# Terraform module pipeline
+# ---------------------------
+
+tf_fmt_validate:
+  stage: test
+  image: hashicorp/terraform:1.6.6
+  script:
+    - cd "$TF_DIR"
+    - terraform fmt -check -diff -recursive
+    - terraform init -backend=false
+    - terraform validate
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+tflint:
+  stage: lint
+  image: ghcr.io/terraform-linters/tflint:v0.53.0
+  script:
+    - cd "$TF_DIR"
+    - tflint --init
+    - tflint -f compact
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+checkov:
+  stage: security
+  image: bridgecrew/checkov:latest
+  script:
+    - checkov -d "$TF_DIR" --framework terraform --quiet
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+trivy_iac:
+  stage: security
+  image: aquasec/trivy:latest
+  script:
+    - trivy config --severity HIGH,CRITICAL --exit-code 1 "$TF_DIR"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+sonarqube_terraform:
+  stage: sonar
+  image: sonarsource/sonar-scanner-cli:latest
+  script:
+    - sonar-scanner
+      -Dsonar.host.url="$SONAR_HOST_URL"
+      -Dsonar.login="$SONAR_TOKEN"
+      -Dsonar.projectKey="$SONAR_PROJECT_KEY"
+      -Dsonar.sources="$TF_DIR"
+      -Dsonar.exclusions="**/.terraform/**,**/*.tfstate,**/*.tfstate.*,**/*.zip,**/*.tgz"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+publish_terraform_module:
+  stage: publish
+  image: alpine:3.20
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^tf-v\d+\.\d+\.\d+.*$/'
+  script:
+    - apk add --no-cache curl tar
+    - VERSION="${CI_COMMIT_TAG#tf-v}"
+    - MODULE_NAME="${CI_PROJECT_NAME}"
+    - test -n "$TERRAFORM_MODULE_SYSTEM"
+    - tar -czf module.tgz -C "$TF_DIR" .
+    - >
+      curl --fail
+      --header "JOB-TOKEN: $CI_JOB_TOKEN"
+      --upload-file module.tgz
+      "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/terraform/modules/${MODULE_NAME}/${TERRAFORM_MODULE_SYSTEM}/${VERSION}/file"
+  artifacts:
+    paths: [module.tgz]
+    expire_in: 7 days
+
+# ---------------------------
+# Python app pipeline
+# ---------------------------
+
+py_lint:
+  stage: lint
+  image: python:3.12-slim
+  script:
+    - cd python-app
+    - python -V
+    - pip install -U pip ruff
+    - ruff check .
+    - ruff format --check .
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+py_tests:
+  stage: test
+  image: python:3.12-slim
+  script:
+    - cd python-app
+    - python -V
+    - pip install -U pip pytest pytest-cov
+    - pytest -q --cov=. --cov-report=xml:coverage.xml
+  artifacts:
+    paths:
+      - python-app/coverage.xml
+    expire_in: 7 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+sonarqube_python:
+  stage: sonar
+  image: sonarsource/sonar-scanner-cli:latest
+  dependencies: [py_tests]
+  script:
+    - cd python-app
+    - sonar-scanner
+      -Dsonar.host.url="$SONAR_HOST_URL"
+      -Dsonar.login="$SONAR_TOKEN"
+      -Dsonar.projectKey="$SONAR_PROJECT_KEY_PYTHON"
+      -Dsonar.sources="."
+      -Dsonar.exclusions="**/.venv/**,**/__pycache__/**,**/.pytest_cache/**,**/dist/**,**/build/**"
+      -Dsonar.python.coverage.reportPaths="coverage.xml"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+py_build:
+  stage: build
+  image: python:3.12-slim
+  script:
+    - cd python-app
+    - python -V
+    - pip install -U pip build
+    - python -m build
+  artifacts:
+    paths:
+      - python-app/dist/
+    expire_in: 14 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+publish_python_artifactory:
+  stage: publish
+  image: alpine:3.20
+  dependencies: [py_build]
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^py-v\d+\.\d+\.\d+.*$/'
+  script:
+    - apk add --no-cache curl
+    - test -n "$ARTIFACTORY_URL_PYTHON"
+    - test -n "$ARTIFACTORY_REPO"
+    - test -n "$ARTIFACTORY_TOKEN"
+    - VERSION="${CI_COMMIT_TAG#py-v}"
+    - |
+      for f in python-app/dist/*; do
+        [ -f "$f" ] || continue
+        echo "Uploading $f ..."
+        curl -f \
+          -H "Authorization: Bearer $ARTIFACTORY_TOKEN" \
+          -H "X-JFrog-Art-Api: $ARTIFACTORY_TOKEN" \
+          -T "$f" \
+          "$ARTIFACTORY_URL_PYTHON/artifactory/$ARTIFACTORY_REPO/python-app/$VERSION/$(basename "$f")"
+      done
