@@ -1,0 +1,60 @@
+- name: Install PHP packages (Debian/Ubuntu)
+  ansible.builtin.package:
+    name: "{{ php_packages_debian }}"
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == "Debian"
+
+- name: Install PHP packages (RedHat)
+  ansible.builtin.package:
+    name: "{{ php_packages_redhat }}"
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: "Debian: detect PHP-FPM unit file"
+  ansible.builtin.shell: |
+    set -o pipefail
+    systemctl list-unit-files --type=service --no-legend \
+      | awk '{print $1}' \
+      | grep -E '^php[0-9.]+-fpm\.service$' \
+      | head -n 1
+  args:
+    executable: /bin/bash
+  register: php_fpm_unit
+  changed_when: false
+  when: ansible_facts.os_family == "Debian"
+
+- name: "Debian: set PHP-FPM service name"
+  ansible.builtin.set_fact:
+    php_fpm_service: "{{ (php_fpm_unit.stdout | trim | default('php8.3-fpm.service', true)) | regex_replace('\\.service$','') }}"
+  when: ansible_facts.os_family == "Debian"
+
+- name: "RedHat: set PHP-FPM service name"
+  ansible.builtin.set_fact:
+    php_fpm_service: "php-fpm"
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Set PHP-FPM socket path
+  ansible.builtin.set_fact:
+    php_fpm_socket: "{{ (ansible_facts.os_family == 'Debian') | ternary('/run/php/' ~ php_fpm_service ~ '.sock', '/run/php-fpm/www.sock') }}"
+
+- name: "RHEL: tune php-fpm pool for nginx + socket perms"
+  ansible.builtin.lineinfile:
+    path: /etc/php-fpm.d/www.conf
+    regexp: "^{{ item.key }}\\s*="
+    line: "{{ item.key }} = {{ item.val }}"
+  loop:
+    - { key: "user",         val: "nginx" }
+    - { key: "group",        val: "nginx" }
+    - { key: "listen",       val: "/run/php-fpm/www.sock" }
+    - { key: "listen.owner", val: "nginx" }
+    - { key: "listen.group", val: "nginx" }
+    - { key: "listen.mode",  val: "0660" }
+  when: ansible_facts.os_family == "RedHat"
+  notify: Restart PHP-FPM
+
+- name: Enable and start PHP-FPM
+  ansible.builtin.service:
+    name: "{{ php_fpm_service }}"
+    state: started
+    enabled: true

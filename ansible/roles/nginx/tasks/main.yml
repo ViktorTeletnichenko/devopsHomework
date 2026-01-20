@@ -1,0 +1,90 @@
+- name: Install nginx
+  ansible.builtin.package:
+    name: nginx
+    state: present
+
+- name: Ensure web root exists
+  ansible.builtin.file:
+    path: "{{ web_root }}"
+    state: directory
+    mode: "0755"
+
+- name: "Debian: write vhost to sites-available/default"
+  ansible.builtin.template:
+    src: default.conf.j2
+    dest: /etc/nginx/sites-available/default
+    mode: "0644"
+  when: ansible_facts.os_family == "Debian"
+  notify: Restart nginx
+
+- name: "Debian: ensure sites-enabled/default link"
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/default
+    dest: /etc/nginx/sites-enabled/default
+    state: link
+    force: true
+  when: ansible_facts.os_family == "Debian"
+  notify: Restart nginx
+
+- name: "RedHat: write vhost to conf.d/default.conf"
+  ansible.builtin.template:
+    src: default.conf.j2
+    dest: /etc/nginx/conf.d/default.conf
+    mode: "0644"
+  when: ansible_facts.os_family == "RedHat"
+  notify: Restart nginx
+
+- name: Deploy index.php
+  ansible.builtin.template:
+    src: index.php.j2
+    dest: "{{ web_root }}/index.php"
+    mode: "0644"
+  notify: Restart nginx
+
+- name: "RedHat: install firewalld + python firewall bindings"
+  ansible.builtin.package:
+    name:
+      - firewalld
+      - python3-firewall
+    state: present
+  when: ansible_facts.os_family == "RedHat"
+
+- name: "RedHat: enable and start firewalld"
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+  when: ansible_facts.os_family == "RedHat"
+
+- name: "RedHat: open http/https in firewalld (module with fallback)"
+  block:
+    - name: "RedHat: open services via ansible.posix.firewalld"
+      ansible.posix.firewalld:
+        service: "{{ item }}"
+        permanent: true
+        state: enabled
+        immediate: true
+      loop: [ "http", "https" ]
+  rescue:
+    - name: "RedHat: fallback open services via firewall-cmd"
+      ansible.builtin.command: "firewall-cmd --permanent --add-service={{ item }}"
+      loop: [ "http", "https" ]
+      changed_when: true
+
+    - name: "RedHat: reload firewalld"
+      ansible.builtin.command: firewall-cmd --reload
+      changed_when: true
+  when: ansible_facts.os_family == "RedHat"
+
+- name: "RedHat: SELinux allow web connect to DB"
+  ansible.posix.seboolean:
+    name: httpd_can_network_connect_db
+    state: true
+    persistent: true
+  when: ansible_facts.os_family == "RedHat"
+
+- name: Enable and start nginx
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true

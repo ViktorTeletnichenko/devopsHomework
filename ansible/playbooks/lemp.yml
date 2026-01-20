@@ -1,0 +1,13 @@
+- name: Install LEMP on Ubuntu + RHEL
+  hosts: all
+  become: true
+
+  vars:
+    db_name: appdb
+    db_user: appuser
+    db_password: "AppPassw0rd!"
+
+  roles:
+    - mysql
+    - php
+    - nginx

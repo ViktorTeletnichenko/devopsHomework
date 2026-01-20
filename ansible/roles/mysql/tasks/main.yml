@@ -1,0 +1,60 @@
+- name: Set OS-specific mysql vars
+  ansible.builtin.set_fact:
+    mysql_packages: "{{ (ansible_facts.os_family == 'Debian') | ternary(['mysql-server'], ['mariadb-server']) }}"
+    mysql_service:  "{{ (ansible_facts.os_family == 'Debian') | ternary('mysql', 'mariadb') }}"
+    pymysql_pkg:    "{{ (ansible_facts.os_family == 'Debian') | ternary('python3-pymysql', 'python3-PyMySQL') }}"
+
+- name: Install DB server
+  ansible.builtin.package:
+    name: "{{ mysql_packages }}"
+    state: present
+
+- name: Ensure PyMySQL (package) or fallback to pip
+  block:
+    - name: Install PyMySQL package
+      ansible.builtin.package:
+        name: "{{ pymysql_pkg }}"
+        state: present
+  rescue:
+    - name: Install pip
+      ansible.builtin.package:
+        name: python3-pip
+        state: present
+    - name: Install PyMySQL via pip
+      ansible.builtin.pip:
+        name: pymysql
+        state: present
+
+- name: Enable and start DB service
+  ansible.builtin.service:
+    name: "{{ mysql_service }}"
+    state: started
+    enabled: true
+
+- name: Detect mysql socket (common locations)
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - /var/run/mysqld/mysqld.sock
+    - /var/lib/mysql/mysql.sock
+    - /var/run/mariadb/mariadb.sock
+  register: mysql_sock_stats
+
+- name: Set mysql_socket fact
+  ansible.builtin.set_fact:
+    mysql_socket: "{{ (mysql_sock_stats.results | selectattr('stat.exists','equalto',true) | map(attribute='stat.path') | list | first) | default('/var/run/mysqld/mysqld.sock') }}"
+
+- name: Create database
+  community.mysql.mysql_db:
+    name: "{{ db_name }}"
+    state: present
+    login_unix_socket: "{{ mysql_socket }}"
+
+- name: Create DB user with privileges
+  community.mysql.mysql_user:
+    name: "{{ db_user }}"
+    password: "{{ db_password }}"
+    host: "localhost"
+    priv: "{{ db_name }}.*:ALL"
+    state: present
+    login_unix_socket: "{{ mysql_socket }}"

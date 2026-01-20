@@ -1,0 +1,9 @@
+[ubuntu]
+ubuntu1 ansible_host=${ubuntu_public_ip} ansible_user=ubuntu
+
+[redhat]
+rhel1 ansible_host=${rhel_public_ip} ansible_user=ec2-user
+
+[all:vars]
+ansible_ssh_private_key_file=${private_key_path}
+ansible_python_interpreter=/usr/bin/python3

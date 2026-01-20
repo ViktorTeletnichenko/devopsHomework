@@ -1,0 +1,137 @@
+
+PLAY [Install LEMP on Ubuntu + RHEL] *******************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [rhel1]
+ok: [ubuntu1]
+
+TASK [mysql : Set OS-specific mysql vars] **************************************
+ok: [ubuntu1]
+ok: [rhel1]
+
+TASK [mysql : Install DB server] ***********************************************
+ok: [ubuntu1]
+ok: [rhel1]
+
+TASK [mysql : Install PyMySQL package] *****************************************
+ok: [ubuntu1]
+ok: [rhel1]
+
+TASK [mysql : Enable and start DB service] *************************************
+ok: [rhel1]
+ok: [ubuntu1]
+
+TASK [mysql : Detect mysql socket (common locations)] **************************
+ok: [rhel1] => (item=/var/run/mysqld/mysqld.sock)
+ok: [ubuntu1] => (item=/var/run/mysqld/mysqld.sock)
+ok: [rhel1] => (item=/var/lib/mysql/mysql.sock)
+ok: [ubuntu1] => (item=/var/lib/mysql/mysql.sock)
+ok: [ubuntu1] => (item=/var/run/mariadb/mariadb.sock)
+ok: [rhel1] => (item=/var/run/mariadb/mariadb.sock)
+
+TASK [mysql : Set mysql_socket fact] *******************************************
+ok: [ubuntu1]
+ok: [rhel1]
+
+TASK [mysql : Create database] *************************************************
+ok: [rhel1]
+ok: [ubuntu1]
+
+TASK [mysql : Create DB user with privileges] **********************************
+ok: [rhel1]
+ok: [ubuntu1]
+
+TASK [php : Install PHP packages (Debian/Ubuntu)] ******************************
+skipping: [rhel1]
+ok: [ubuntu1]
+
+TASK [php : Install PHP packages (RedHat)] *************************************
+skipping: [ubuntu1]
+ok: [rhel1]
+
+TASK [php : Debian: detect PHP-FPM unit file] **********************************
+skipping: [rhel1]
+ok: [ubuntu1]
+
+TASK [php : Debian: set PHP-FPM service name] **********************************
+skipping: [rhel1]
+ok: [ubuntu1]
+
+TASK [php : RedHat: set PHP-FPM service name] **********************************
+skipping: [ubuntu1]
+ok: [rhel1]
+
+TASK [php : Set PHP-FPM socket path] *******************************************
+ok: [ubuntu1]
+ok: [rhel1]
+
+TASK [php : RHEL: tune php-fpm pool for nginx + socket perms] ******************
+skipping: [ubuntu1] => (item={'key': 'user', 'val': 'nginx'}) 
+skipping: [ubuntu1] => (item={'key': 'group', 'val': 'nginx'}) 
+skipping: [ubuntu1] => (item={'key': 'listen', 'val': '/run/php-fpm/www.sock'}) 
+skipping: [ubuntu1] => (item={'key': 'listen.owner', 'val': 'nginx'}) 
+skipping: [ubuntu1] => (item={'key': 'listen.group', 'val': 'nginx'}) 
+skipping: [ubuntu1] => (item={'key': 'listen.mode', 'val': '0660'}) 
+skipping: [ubuntu1]
+ok: [rhel1] => (item={'key': 'user', 'val': 'nginx'})
+ok: [rhel1] => (item={'key': 'group', 'val': 'nginx'})
+ok: [rhel1] => (item={'key': 'listen', 'val': '/run/php-fpm/www.sock'})
+ok: [rhel1] => (item={'key': 'listen.owner', 'val': 'nginx'})
+ok: [rhel1] => (item={'key': 'listen.group', 'val': 'nginx'})
+ok: [rhel1] => (item={'key': 'listen.mode', 'val': '0660'})
+
+TASK [php : Enable and start PHP-FPM] ******************************************
+ok: [rhel1]
+ok: [ubuntu1]
+
+TASK [nginx : Install nginx] ***************************************************
+ok: [ubuntu1]
+ok: [rhel1]
+
+TASK [nginx : Ensure web root exists] ******************************************
+ok: [ubuntu1]
+ok: [rhel1]
+
+TASK [nginx : Debian: write vhost to sites-available/default] ******************
+skipping: [rhel1]
+ok: [ubuntu1]
+
+TASK [nginx : Debian: ensure sites-enabled/default link] ***********************
+skipping: [rhel1]
+ok: [ubuntu1]
+
+TASK [nginx : RedHat: write vhost to conf.d/default.conf] **********************
+skipping: [ubuntu1]
+ok: [rhel1]
+
+TASK [nginx : Deploy index.php] ************************************************
+ok: [ubuntu1]
+ok: [rhel1]
+
+TASK [nginx : RedHat: install firewalld + python firewall bindings] ************
+skipping: [ubuntu1]
+ok: [rhel1]
+
+TASK [nginx : RedHat: enable and start firewalld] ******************************
+skipping: [ubuntu1]
+ok: [rhel1]
+
+TASK [nginx : RedHat: open services via ansible.posix.firewalld] ***************
+skipping: [ubuntu1] => (item=http) 
+skipping: [ubuntu1] => (item=https) 
+skipping: [ubuntu1]
+ok: [rhel1] => (item=http)
+ok: [rhel1] => (item=https)
+
+TASK [nginx : RedHat: SELinux allow web connect to DB] *************************
+skipping: [ubuntu1]
+ok: [rhel1]
+
+TASK [nginx : Enable and start nginx] ******************************************
+ok: [rhel1]
+ok: [ubuntu1]
+
+PLAY RECAP *********************************************************************
+rhel1                      : ok=23   changed=0    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   
+ubuntu1                    : ok=20   changed=0    unreachable=0    failed=0    skipped=8    rescued=0    ignored=0   
+

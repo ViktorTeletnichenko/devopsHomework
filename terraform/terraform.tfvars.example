@@ -1,0 +1,12 @@
+region = "eu-central-1"
+profile = "myaws"
+
+# Рекомендовано: твій IP/32 для SSH. Для домашки можна 0.0.0.0/0, але це гірше по безпеці.
+allowed_cidr = "0.0.0.0/0"
+
+# KeyPair уже існує в AWS: tf-deployer-key
+key_name = "tf-deployer-key"
+
+# ЛОКАЛЬНИЙ шлях до приватного ключа, який відповідає tf-deployer-key
+# приклад:
+private_key_path = "~/.ssh/tf-deployer-key.pem"

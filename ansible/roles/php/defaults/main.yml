@@ -1,0 +1,6 @@
+php_packages_debian:
+  - php-fpm
+  - php-mysql
+php_packages_redhat:
+  - php-fpm
+  - php-mysqlnd
