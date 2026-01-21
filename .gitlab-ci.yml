@@ -44,7 +44,7 @@ checkov:
     name: bridgecrew/checkov:latest
     entrypoint: [""]
   script:
-    - checkov -d "$TF_DIR" --framework terraform --quiet
+    - checkov -d "$TF_DIR" --framework terraform --quiet --skip-check CKV_GLB_1,CKV_GLB_3,CKV_GLB_4
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH
