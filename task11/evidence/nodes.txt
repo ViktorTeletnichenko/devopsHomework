@@ -1,0 +1,5 @@
+NAME                   STATUS   ROLES           AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                         KERNEL-VERSION      CONTAINER-RUNTIME
+task11-control-plane   Ready    control-plane   66s   v1.30.0   172.18.0.4    <none>        Debian GNU/Linux 12 (bookworm)   6.14.0-37-generic   containerd://1.7.15
+task11-worker          Ready    <none>          45s   v1.30.0   172.18.0.2    <none>        Debian GNU/Linux 12 (bookworm)   6.14.0-37-generic   containerd://1.7.15
+task11-worker2         Ready    <none>          47s   v1.30.0   172.18.0.5    <none>        Debian GNU/Linux 12 (bookworm)   6.14.0-37-generic   containerd://1.7.15
+task11-worker3         Ready    <none>          47s   v1.30.0   172.18.0.3    <none>        Debian GNU/Linux 12 (bookworm)   6.14.0-37-generic   containerd://1.7.15

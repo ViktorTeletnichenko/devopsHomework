@@ -1,0 +1,5 @@
+NAME             READY   STATUS    RESTARTS   AGE   IP           NODE             NOMINATED NODE   READINESS GATES
+nginx-rs-88xh7   1/1     Running   0          22s   10.244.3.2   task11-worker    <none>           <none>
+nginx-rs-hknx4   1/1     Running   0          22s   10.244.1.2   task11-worker3   <none>           <none>
+nginx-rs-pnjlc   1/1     Running   0          22s   10.244.2.2   task11-worker2   <none>           <none>
+nginx-rs-wbffr   1/1     Running   0          21s   10.244.2.3   task11-worker2   <none>           <none>

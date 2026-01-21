@@ -1,0 +1,5 @@
+NAME            READY   STATUS    RESTARTS   AGE   IP           NODE                   NOMINATED NODE   READINESS GATES
+kindnet-cr8sm   1/1     Running   0          41s   172.18.0.2   task11-worker          <none>           <none>
+kindnet-m8zj6   1/1     Running   0          43s   172.18.0.3   task11-worker3         <none>           <none>
+kindnet-sjv6z   1/1     Running   0          43s   172.18.0.5   task11-worker2         <none>           <none>
+kindnet-vnw5l   1/1     Running   0          44s   172.18.0.4   task11-control-plane   <none>           <none>
