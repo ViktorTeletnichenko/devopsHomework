@@ -1,0 +1,90 @@
+$ docker build -t task1-redis:latest .
+
+$ docker run -d --name task1-redis --memory 256m --cpus 0.5 task1-redis:latest
+8fa1a88fb389bd6511647af584c0395b08fefb43d240553f864b9901ed1a5a66
+
+$ docker inspect task1-redis --format {{.HostConfig.Memory}} {{.HostConfig.NanoCpus}}
+268435456 500000000
+
+$ docker exec task1-redis sh -c 'if [ -f /sys/fs/cgroup/memory.max ]; then cat /sys/fs/cgroup/memory.max; else cat /sys/fs/cgroup/memory/memory.limit_in_bytes; fi'
+268435456
+
+$ docker exec task1-redis sh -c 'if [ -f /sys/fs/cgroup/cpu.max ]; then cat /sys/fs/cgroup/cpu.max; else cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us /sys/fs/cgroup/cpu/cpu.cfs_period_us; fi'
+50000 100000
+
+$ docker rm -f task1-redis
+task1-redis
+
+$ docker volume create redis_data
+redis_data
+
+$ docker run -d --name task1-redis-vol -v redis_data:/data task1-redis:latest
+e51d7485da777388d0e0a7d4f893e3dac2e54fd1cf857a4ac67caf91fc1f09bc
+
+$ docker exec task1-redis-vol redis-cli set key1 value1
+OK
+
+$ docker exec task1-redis-vol redis-cli set key2 value2
+OK
+
+$ docker exec task1-redis-vol redis-cli save
+OK
+
+$ docker exec task1-redis-vol redis-cli keys *
+key2
+key1
+
+$ docker rm -f task1-redis-vol
+task1-redis-vol
+
+$ docker run -d --name task1-redis-vol -v redis_data:/data task1-redis:latest
+296c2a318edf6fd8c0f6a050a52009d871e753630c4a6789d7161d8c3dc343f2
+
+$ docker exec task1-redis-vol redis-cli keys *
+key2
+key1
+
+$ docker inspect task1-redis-vol | sed -n '1,40p'
+[
+    {
+        "Id": "296c2a318edf6fd8c0f6a050a52009d871e753630c4a6789d7161d8c3dc343f2",
+        "Created": "2026-01-21T09:03:12.140543312Z",
+        "Path": "docker-entrypoint.sh",
+        "Args": [
+            "redis-server"
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 464615,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-01-21T09:03:12.180352971Z",
+            "FinishedAt": "0001-01-01T00:00:00Z"
+        },
+        "Image": "sha256:f3547a2bf01cbec0bde7eb072f34f453a658cb9993a4b383b5046652e8794dab",
+        "ResolvConfPath": "/var/lib/docker/containers/296c2a318edf6fd8c0f6a050a52009d871e753630c4a6789d7161d8c3dc343f2/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/296c2a318edf6fd8c0f6a050a52009d871e753630c4a6789d7161d8c3dc343f2/hostname",
+        "HostsPath": "/var/lib/docker/containers/296c2a318edf6fd8c0f6a050a52009d871e753630c4a6789d7161d8c3dc343f2/hosts",
+        "LogPath": "/var/lib/docker/containers/296c2a318edf6fd8c0f6a050a52009d871e753630c4a6789d7161d8c3dc343f2/296c2a318edf6fd8c0f6a050a52009d871e753630c4a6789d7161d8c3dc343f2-json.log",
+        "Name": "/task1-redis-vol",
+        "RestartCount": 0,
+        "Driver": "overlay2",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "docker-default",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "redis_data:/data"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+
+$ docker rm -f task1-redis-vol
+task1-redis-vol
