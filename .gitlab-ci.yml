@@ -2,6 +2,7 @@ stages: [lint, test, security, sonar, build, publish]
 
 variables:
   GIT_DEPTH: "0"
+  GIT_LFS_SKIP_SMUDGE: "1"
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
   TF_DIR: "terraform-hw3"
