@@ -14,7 +14,9 @@ variables:
 
 tf_fmt_validate:
   stage: test
-  image: hashicorp/terraform:1.6.6
+  image:
+    name: hashicorp/terraform:1.6.6
+    entrypoint: [""]
   script:
     - cd "$TF_DIR"
     - terraform fmt -check -diff -recursive
@@ -38,7 +40,9 @@ tflint:
 
 checkov:
   stage: security
-  image: bridgecrew/checkov:latest
+  image:
+    name: bridgecrew/checkov:latest
+    entrypoint: [""]
   script:
     - checkov -d "$TF_DIR" --framework terraform --quiet
   rules:
@@ -47,7 +51,9 @@ checkov:
 
 trivy_iac:
   stage: security
-  image: aquasec/trivy:latest
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
   script:
     - trivy config --severity HIGH,CRITICAL --exit-code 1 "$TF_DIR"
   rules:
@@ -56,7 +62,9 @@ trivy_iac:
 
 sonarqube_terraform:
   stage: sonar
-  image: sonarsource/sonar-scanner-cli:latest
+  image:
+    name: sonarsource/sonar-scanner-cli:latest
+    entrypoint: [""]
   script:
     - >
       sonar-scanner
@@ -137,7 +145,9 @@ py_tests:
 
 sonarqube_python:
   stage: sonar
-  image: sonarsource/sonar-scanner-cli:latest
+  image:
+    name: sonarsource/sonar-scanner-cli:latest
+    entrypoint: [""]
   dependencies: [py_tests]
   script:
     - cd python-app
