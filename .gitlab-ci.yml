@@ -223,17 +223,16 @@ tf_apply_aws:
   script:
     - cd "$DEPLOY_TF_DIR"
     - test -n "$AWS_PUBLIC_KEY"
+    - export TF_VAR_public_key="$AWS_PUBLIC_KEY"
+    - export TF_VAR_key_name="${AWS_KEY_NAME:-ci-deploy-key}"
+    - export TF_VAR_app_port="${APP_PORT:-8080}"
+    - export TF_VAR_aws_region="${AWS_DEFAULT_REGION:-us-east-1}"
     - terraform init
     - terraform apply -auto-approve
     - APP_IP="$(terraform output -raw public_ip)"
     - cd "$CI_PROJECT_DIR"
     - mkdir -p "$ANSIBLE_DIR"
     - printf "[app]\\n%s ansible_user=ec2-user\\n" "$APP_IP" > "$ANSIBLE_DIR/inventory.ini"
-  variables:
-    TF_VAR_public_key: "$AWS_PUBLIC_KEY"
-    TF_VAR_key_name: "${AWS_KEY_NAME:-ci-deploy-key}"
-    TF_VAR_app_port: "${APP_PORT:-8080}"
-    TF_VAR_aws_region: "${AWS_DEFAULT_REGION:-us-east-1}"
   artifacts:
     paths:
       - deploy/terraform/terraform.tfstate
@@ -276,10 +275,9 @@ tf_destroy_aws:
       when: manual
   script:
     - cd "$DEPLOY_TF_DIR"
+    - export TF_VAR_public_key="$AWS_PUBLIC_KEY"
+    - export TF_VAR_key_name="${AWS_KEY_NAME:-ci-deploy-key}"
+    - export TF_VAR_app_port="${APP_PORT:-8080}"
+    - export TF_VAR_aws_region="${AWS_DEFAULT_REGION:-us-east-1}"
     - terraform init
     - terraform destroy -auto-approve
-  variables:
-    TF_VAR_public_key: "$AWS_PUBLIC_KEY"
-    TF_VAR_key_name: "${AWS_KEY_NAME:-ci-deploy-key}"
-    TF_VAR_app_port: "${APP_PORT:-8080}"
-    TF_VAR_aws_region: "${AWS_DEFAULT_REGION:-us-east-1}"
