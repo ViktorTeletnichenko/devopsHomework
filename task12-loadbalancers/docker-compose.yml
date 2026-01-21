@@ -8,6 +8,7 @@ services:
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=task12-loadbalancers_app_network"
       - "--entrypoints.web.address=:80"
     ports:
       - "8081:80"
@@ -34,6 +35,7 @@ services:
       REDIS_PORT: 6379
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=task12-loadbalancers_app_network"
       - "traefik.http.routers.web.rule=PathPrefix(`/`)"
       - "traefik.http.routers.web.entrypoints=web"
       - "traefik.http.services.web.loadbalancer.server.port=5000"
