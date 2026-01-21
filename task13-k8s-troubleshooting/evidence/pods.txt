@@ -1,0 +1,2 @@
+NAME                          READY   STATUS    RESTARTS   AGE   IP           NODE                   NOMINATED NODE   READINESS GATES
+sample-app-7db56d85b8-npfrp   1/1     Running   0          29s   10.244.0.6   task13-control-plane   <none>           <none>
