@@ -203,7 +203,6 @@ publish_python_artifactory:
         echo "Uploading $f ..."
         curl -f \
           -H "Authorization: Bearer $ARTIFACTORY_TOKEN" \
-          -H "X-JFrog-Art-Api: $ARTIFACTORY_TOKEN" \
           -T "$f" \
           "$ARTIFACTORY_URL_PYTHON/artifactory/$ARTIFACTORY_REPO/python-app/$VERSION/$(basename "$f")"
       done
