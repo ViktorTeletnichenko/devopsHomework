@@ -1,2 +1,5 @@
+from python_app import add
+
+
 def test_smoke():
-    assert 1 + 1 == 2
+    assert add(1, 1) == 2

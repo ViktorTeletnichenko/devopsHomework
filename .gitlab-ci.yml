@@ -4,7 +4,8 @@ variables:
   GIT_DEPTH: "0"
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
-  TF_DIR: "infra/gitlab/modules/gitlab-bootstrap"
+  TF_DIR: "terraform-hw3"
+  TERRAFORM_MODULE_SYSTEM: "gitlab"
 
 # ---------------------------
 # Terraform module pipeline
@@ -55,12 +56,26 @@ sonarqube_terraform:
   stage: sonar
   image: sonarsource/sonar-scanner-cli:latest
   script:
-    - sonar-scanner
+    - >
+      sonar-scanner
       -Dsonar.host.url="$SONAR_HOST_URL"
       -Dsonar.login="$SONAR_TOKEN"
       -Dsonar.projectKey="$SONAR_PROJECT_KEY"
       -Dsonar.sources="$TF_DIR"
       -Dsonar.exclusions="**/.terraform/**,**/*.tfstate,**/*.tfstate.*,**/*.zip,**/*.tgz"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+tf_build:
+  stage: build
+  image: alpine:3.20
+  script:
+    - apk add --no-cache tar
+    - tar -czf module.tgz -C "$TF_DIR" .
+  artifacts:
+    paths: [module.tgz]
+    expire_in: 7 days
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH
@@ -109,7 +124,7 @@ py_tests:
     - cd python-app
     - python -V
     - pip install -U pip pytest pytest-cov
-    - pytest -q --cov=. --cov-report=xml:coverage.xml
+    - PYTHONPATH=. pytest -q --cov=. --cov-report=xml:coverage.xml
   artifacts:
     paths:
       - python-app/coverage.xml
@@ -124,7 +139,8 @@ sonarqube_python:
   dependencies: [py_tests]
   script:
     - cd python-app
-    - sonar-scanner
+    - >
+      sonar-scanner
       -Dsonar.host.url="$SONAR_HOST_URL"
       -Dsonar.login="$SONAR_TOKEN"
       -Dsonar.projectKey="$SONAR_PROJECT_KEY_PYTHON"
