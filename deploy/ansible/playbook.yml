@@ -1,10 +1,28 @@
 - name: Deploy python app
   hosts: app
   become: true
+  gather_facts: false
   vars:
     app_dir: /opt/python-app
     service_name: python-app
     app_port: "{{ app_port | default(8080) }}"
+    ansible_python_interpreter: /usr/bin/python3.8
+  pre_tasks:
+    - name: Install Python 3.8 on the target host
+      ansible.builtin.raw: |
+        set -e
+        if ! command -v python3.8 >/dev/null 2>&1; then
+          if command -v amazon-linux-extras >/dev/null 2>&1; then
+            amazon-linux-extras install -y python3.8
+          else
+            yum install -y python38 || yum install -y python3.8
+          fi
+        fi
+      changed_when: false
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
   tasks:
     - name: Install system dependencies
       ansible.builtin.package:
